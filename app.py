@@ -26,7 +26,7 @@ Stations = Base.classes.station
 app = Flask(__name__)
 
 ###########################################################################################
-# Flask Routes
+################################## Flask Routes ###########################################
 ###########################################################################################
 
 @app.route("/")
@@ -152,9 +152,18 @@ def stats_by_start_date(start):
     # Create our session (link) from Python to the DB
     session = Session(engine)
     
-    # Calculate query date
+    # Format search query date
     search = dt.date.fromisoformat(start)
-
+    
+    # Query and date validation
+    latestDate = session.query(Measurements.date).order_by(Measurements.date.desc()).first()
+    earliestDate = session.query(Measurements.date).order_by(Measurements.date).first()
+    upperBounds = dt.date.fromisoformat(latestDate[0])
+    lowerBounds = dt.date.fromisoformat(earliestDate[0])
+    
+    if search>upperBounds or search<lowerBounds: 
+        return jsonify({"ERROR": "Choose date within avaliable range."}), 404
+    
     # Query for temp data
     stationData = session.query(Measurements.station, Stations.name, Measurements.date, Measurements.tobs).\
         filter(Stations.station == Measurements.station).\
@@ -187,13 +196,22 @@ def stats_between_dates(start,end):
     # Create our session (link) from Python to the DB
     session = Session(engine)
     
-    # Calculate query date
+    # Format search query dates
     searchStart = dt.date.fromisoformat(start)
     searchEnd = dt.date.fromisoformat(end)
+    
+    # Query and date validation
     dateTest = searchStart <= searchEnd
+    
+    latestDate = session.query(Measurements.date).order_by(Measurements.date.desc()).first()
+    earliestDate = session.query(Measurements.date).order_by(Measurements.date).first()
+    upperBounds = dt.date.fromisoformat(latestDate[0])
+    lowerBounds = dt.date.fromisoformat(earliestDate[0])
     
     if dateTest == False:
         return jsonify({"ERROR": "End date should be greater than start date."}), 404
+    elif ((searchStart or searchEnd)>upperBounds) or ((searchStart or searchEndsearch)<lowerBounds):
+        return jsonify({"ERROR": "Choose dates within avaliable range."}), 404
     
     # Query for temp data
     stationData = session.query(Measurements.station, Stations.name, Measurements.date, Measurements.tobs).\
@@ -219,6 +237,10 @@ def stats_between_dates(start,end):
     
     return jsonify(tempResults)
 
+###########################################################################################
 
 if __name__ == '__main__':
     app.run(debug=True)
+    
+###########################################################################################
+###########################################################################################
